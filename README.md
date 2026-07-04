@@ -240,6 +240,9 @@ scripts/
 
 ## Bonus: use the local engine with the official VoicePaste beta app
 
+> **One-line installers for this setup (macOS + Windows) live in a dedicated repo:**
+> **[joshmarketingnl/voicepaste-local-server](https://github.com/joshmarketingnl/voicepaste-local-server)**
+
 The official VoicePaste desktop beta (v1.1+) has a configurable **Provider** setting and built-in
 localhost support (no API key needed for local providers). You can point it at a bare
 `whisper-server` acting as an OpenAI-compatible endpoint — no proxy required:
