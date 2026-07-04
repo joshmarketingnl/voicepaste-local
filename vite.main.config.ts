@@ -4,7 +4,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: ['bufferutil', 'utf-8-validate'],
+      // Native modules must stay external — rollup can't bundle .node binaries
+      external: ['bufferutil', 'utf-8-validate', '@nut-tree-fork/nut-js'],
     },
   },
 });

@@ -80,6 +80,9 @@ export class TextInjector {
 
   private async simulatePaste(context: CursorContext | null): Promise<void> {
     if (process.platform !== 'darwin') {
+      // Windows/Linux: simulate Ctrl+V with nut-js. The overlay is shown
+      // inactive, so keyboard focus is still on the user's target app.
+      await this.simulatePasteWithNutJs();
       return;
     }
 
@@ -91,6 +94,14 @@ export class TextInjector {
     await new Promise((resolve) => setTimeout(resolve, 50));
     console.log('[TextInjector] Sending Cmd+V via AppleScript');
     await this.runAppleScript('tell application "System Events" to key code 9 using command down');
+  }
+
+  private async simulatePasteWithNutJs(): Promise<void> {
+    const { keyboard, Key } = await import('@nut-tree-fork/nut-js');
+    keyboard.config.autoDelayMs = 10;
+    console.log('[TextInjector] Sending Ctrl+V via nut-js');
+    await keyboard.pressKey(Key.LeftControl, Key.V);
+    await keyboard.releaseKey(Key.LeftControl, Key.V);
   }
 
   private async restoreTargetAppFocus(context: CursorContext | null): Promise<void> {
