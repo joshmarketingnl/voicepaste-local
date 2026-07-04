@@ -15,7 +15,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
-    "release:mac": "./scripts/release-macos.sh"
+    "release:mac": "./scripts/release-macos.sh",
+    "sidecar:download": "node scripts/download-sidecar.mjs"
   },
   "keywords": [],
   "author": {

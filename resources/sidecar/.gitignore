@@ -1,0 +1,5 @@
+# Sidecar binaries are fetched/built per platform — never committed.
+# Run `npm run sidecar:download` (or let CI build them).
+*
+!.gitignore
+!README.md

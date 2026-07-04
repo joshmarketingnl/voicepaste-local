@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/constants';
-import type { AppStatus, ElectronAPI, RendererLogLevel } from './shared/types';
+import type { AppStatus, ElectronAPI, LocalModelId, LocalModelProgress, RendererLogLevel } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   onRecordingStart: (callback: () => void) => {
@@ -106,6 +106,19 @@ const electronAPI: ElectronAPI = {
   },
   realtimeResize: (width: number, height: number) => {
     ipcRenderer.send(IPC_CHANNELS.REALTIME_RESIZE, width, height);
+  },
+
+  // Local model management
+  localModelStatus: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOCAL_MODEL_STATUS),
+  localModelDownload: (id: LocalModelId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOCAL_MODEL_DOWNLOAD, id),
+  localModelDelete: (id: LocalModelId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOCAL_MODEL_DELETE, id),
+  onLocalModelProgress: (callback: (progress: LocalModelProgress) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: LocalModelProgress) => callback(progress);
+    ipcRenderer.on(IPC_CHANNELS.LOCAL_MODEL_PROGRESS, handler);
+    return () => { ipcRenderer.removeListener(IPC_CHANNELS.LOCAL_MODEL_PROGRESS, handler); };
   },
 
   // Diagnostic logging (renderer -> main, persisted by the main-process logger)

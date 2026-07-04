@@ -10,6 +10,8 @@ import { toggleMainWindow, getMainWindow } from './main/main-window';
 import { getConfig } from './main/config-store';
 import { IPC_CHANNELS } from './shared/constants';
 import { registerServiceIPC } from './main/service-ipc';
+import { registerLocalModelIPC } from './main/local-model-ipc';
+import { disposeLocalSidecar } from './main/local-engine-factory';
 import { RealtimeSessionManager } from './main/realtime-session-manager';
 import { getAppLogFilePath, initializeAppLogging } from './main/app-logger';
 
@@ -308,8 +310,9 @@ function initApp(): void {
   });
   ipcHandler.register();
   registerServiceIPC(getMainWindow);
+  registerLocalModelIPC(getMainWindow);
 
-  // Warm up realtime session unconditionally (will skip if no API key)
+  // Warm up realtime session (skips itself if no API key or local engine active)
   sessionManager.warmUp();
 
   // Create shortcut manager
@@ -407,6 +410,7 @@ app.on('ready', async () => {
 
 app.on('before-quit', () => {
   sessionManager.dispose();
+  disposeLocalSidecar();
   const mw = getMainWindow();
   if (mw) {
     (mw as any)._forceClose = true;

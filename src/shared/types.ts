@@ -3,6 +3,35 @@ export type RendererLogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
 export type PolishProvider = 'openai' | 'groq';
 
+// Transcription engine selection
+export type TranscriptionEngineKind = 'local' | 'openai';
+export type LocalModelId = 'large-v3-turbo-q5_0' | 'small-q5_1';
+
+export interface LocalModelInfo {
+  id: LocalModelId;
+  label: string;
+  description: string;
+  fileSizeMB: number;
+  ramHintMB: number;
+  installed: boolean;
+}
+
+export interface LocalModelStatusResult {
+  models: LocalModelInfo[];
+  recommended: LocalModelId;
+  sidecarAvailable: boolean;
+  vadInstalled: boolean;
+  modelsDir: string;
+}
+
+export interface LocalModelProgress {
+  id: LocalModelId | 'vad';
+  receivedBytes: number;
+  totalBytes: number;
+  done: boolean;
+  error?: string;
+}
+
 export interface CursorContext {
   appName: string;
   windowTitle: string;
@@ -17,6 +46,8 @@ export interface AppSettings {
   polishProvider: PolishProvider; // Which provider to use for polish
   audioInputDeviceId: string; // Selected mic device ID; empty string = system default
   openaiApiKey: string; // User's OpenAI API key
+  transcriptionEngine: TranscriptionEngineKind; // 'local' = on-device whisper.cpp, 'openai' = Realtime API
+  localModel: LocalModelId; // Which local whisper model to use
 }
 
 // Dictionary types
@@ -97,6 +128,12 @@ export interface ElectronAPI {
   // Stats
   statsGet: () => Promise<TranscriptionStatsResult>;
   onHistoryUpdated: (callback: () => void) => Disposer;
+
+  // Local model management
+  localModelStatus: () => Promise<LocalModelStatusResult>;
+  localModelDownload: (id: LocalModelId) => Promise<{ success: boolean; error?: string }>;
+  localModelDelete: (id: LocalModelId) => Promise<{ success: boolean; error?: string }>;
+  onLocalModelProgress: (callback: (progress: LocalModelProgress) => void) => Disposer;
 
   // Diagnostic logging (renderer -> main, persisted by the main-process logger)
   rendererLog: (msg: string, level?: RendererLogLevel, source?: string) => void;

@@ -1,6 +1,6 @@
 import Store from 'electron-store';
 import { APP_DEFAULTS } from '../shared/app-defaults';
-import type { PolishProvider } from '../shared/types';
+import type { LocalModelId, PolishProvider, TranscriptionEngineKind } from '../shared/types';
 
 interface StoreSchema {
   hotkey: string;
@@ -9,6 +9,8 @@ interface StoreSchema {
   polishProvider: PolishProvider;
   audioInputDeviceId: string;
   openaiApiKey: string;
+  transcriptionEngine: TranscriptionEngineKind;
+  localModel: LocalModelId;
 }
 
 const store = new Store<StoreSchema>({
@@ -19,6 +21,8 @@ const store = new Store<StoreSchema>({
     polishProvider: APP_DEFAULTS.polishProvider,
     audioInputDeviceId: APP_DEFAULTS.audioInputDeviceId,
     openaiApiKey: APP_DEFAULTS.openaiApiKey,
+    transcriptionEngine: APP_DEFAULTS.transcriptionEngine,
+    localModel: APP_DEFAULTS.localModel,
   },
 });
 
@@ -26,6 +30,12 @@ function normalizeLegacyConfig(): void {
   const legacyAudioInputDeviceId = store.get('audioInputDeviceId');
   if (legacyAudioInputDeviceId === 'default') {
     store.set('audioInputDeviceId', '');
+  }
+
+  // Existing installs that already configured an OpenAI API key keep the
+  // cloud engine until they explicitly switch — new installs default to local.
+  if (!store.has('transcriptionEngine') && store.get('openaiApiKey')) {
+    store.set('transcriptionEngine', 'openai');
   }
 }
 
@@ -45,6 +55,8 @@ export function getConfig(): StoreSchema {
     polishProvider: store.get('polishProvider'),
     audioInputDeviceId: store.get('audioInputDeviceId'),
     openaiApiKey: store.get('openaiApiKey'),
+    transcriptionEngine: store.get('transcriptionEngine'),
+    localModel: store.get('localModel'),
   };
 }
 

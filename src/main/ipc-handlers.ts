@@ -3,6 +3,8 @@ import { IPC_CHANNELS } from '../shared/constants';
 import { TranscriptionService } from './transcription-service';
 import { RealtimeTranscriptionService } from './realtime-transcription-service';
 import type { RealtimeDebugSnapshot } from './realtime-transcription-service';
+import type { TranscriptionEngine } from './transcription-engine';
+import { createLocalEngine, disposeLocalSidecar } from './local-engine-factory';
 import { TextInjector } from './text-injector';
 import { getConfig, setConfig } from './config-store';
 import { fetchRealtimeToken } from './openai-service';
@@ -19,7 +21,7 @@ const MICROPHONE_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.
 
 export class IPCHandler {
   private transcriptionService: TranscriptionService;
-  private realtimeService: RealtimeTranscriptionService | null = null;
+  private realtimeService: TranscriptionEngine | null = null;
   private textInjector: TextInjector;
   private overlayWindow: BrowserWindow | null = null;
   private getMainWindow: (() => BrowserWindow | null) | null = null;
@@ -213,8 +215,27 @@ export class IPCHandler {
     });
 
     ipcMain.on(IPC_CHANNELS.SETTINGS_SET, (_event, settings) => {
+      const previous = getConfig();
       setConfig(settings);
-      this.overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_UPDATED, getConfig());
+      const current = getConfig();
+      this.overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_UPDATED, current);
+
+      // React to engine switches: manage warm resources for the active engine
+      if (previous.transcriptionEngine !== current.transcriptionEngine) {
+        if (current.transcriptionEngine === 'local') {
+          console.log('[IPC] Switched to local engine — cooling down realtime session pool');
+          this.sessionManager?.coolDown();
+        } else {
+          console.log('[IPC] Switched to OpenAI engine — disposing local sidecar');
+          disposeLocalSidecar();
+          this.sessionManager?.enable();
+          this.sessionManager?.warmUp();
+        }
+      } else if (previous.localModel !== current.localModel) {
+        // Model changed: restart the sidecar lazily with the new model
+        console.log('[IPC] Local model changed — disposing sidecar for lazy reload');
+        disposeLocalSidecar();
+      }
     });
 
     // --- Realtime streaming transcription ---
@@ -237,6 +258,7 @@ export class IPCHandler {
         const dictionaryWords = dictionaryService.getAllWords();
         const config = getConfig();
         logDiagnostic('IPC', 'Realtime start requested', {
+          engine: config.transcriptionEngine,
           language: config.language || '(default)',
           dictionarySize: dictionaryWords.length,
           enablePolish: config.enablePolish,
@@ -246,9 +268,16 @@ export class IPCHandler {
         // Clean up any existing realtime connection
         this.realtimeService?.disconnect();
 
-        // Acquire session via session manager (warm pool) or fall back to cold start
-        let service: RealtimeTranscriptionService;
-        if (this.sessionManager) {
+        let service: TranscriptionEngine;
+        if (config.transcriptionEngine === 'local') {
+          // Fully local: whisper.cpp sidecar. connect() validates the model
+          // and warms the server in the background — recording starts
+          // immediately while audio is buffered in-process.
+          const localEngine = createLocalEngine(dictionaryWords);
+          await localEngine.connect();
+          service = localEngine;
+        } else if (this.sessionManager) {
+          // Acquire session via session manager (warm pool) or fall back to cold start
           const result = await this.sessionManager.acquireSession();
           service = result.service;
         } else {
@@ -265,8 +294,9 @@ export class IPCHandler {
           if (!tokenResult) {
             return { success: false, error: 'Failed to get session token' };
           }
-          service = new RealtimeTranscriptionService();
-          await service.connect(tokenResult.clientSecret);
+          const realtime = new RealtimeTranscriptionService();
+          await realtime.connect(tokenResult.clientSecret);
+          service = realtime;
         }
 
         this.realtimeService = service;

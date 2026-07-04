@@ -25,6 +25,8 @@ export const useAppStore = create<AppState>((set) => ({
     polishProvider: APP_DEFAULTS.polishProvider,
     audioInputDeviceId: APP_DEFAULTS.audioInputDeviceId,
     openaiApiKey: APP_DEFAULTS.openaiApiKey,
+    transcriptionEngine: APP_DEFAULTS.transcriptionEngine,
+    localModel: APP_DEFAULTS.localModel,
   },
 
   setStatus: (status) => set((state) => ({

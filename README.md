@@ -13,17 +13,20 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-macOS-blue?style=flat-square" alt="macOS" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue?style=flat-square" alt="macOS | Windows" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License" />
   <img src="https://img.shields.io/badge/electron-40-purple?style=flat-square" alt="Electron 40" />
+  <img src="https://img.shields.io/badge/transcription-100%25%20local-orange?style=flat-square" alt="100% local transcription" />
 </p>
 
 ---
 
-VoicePaste is a **local, open-source** voice-to-text tool for macOS.
-Press one key, speak, and polished text appears at your cursor — in any app. No account required. Bring your own OpenAI API key.
+> **🔒 Local-first edition** — this fork of [CloveSVG/voicepaste](https://github.com/CloveSVG/voicepaste) replaces the OpenAI transcription API with a **fully local speech engine** ([whisper.cpp](https://github.com/ggml-org/whisper.cpp) + Whisper large-v3-turbo). Your voice never leaves your machine, transcription is free, and it works offline. The OpenAI engine is still available as an opt-in setting.
 
-> **All data stays on your machine.** History, dictionary, and settings are stored as local JSON files. Nothing is sent anywhere except OpenAI's API for transcription.
+VoicePaste is a **local, open-source** voice-to-text tool.
+Press one key, speak, and polished text appears at your cursor — in any app. No account required. No API key needed for transcription.
+
+> **All data stays on your machine.** Audio is transcribed on-device. History, dictionary, and settings are stored as local JSON files. Only the optional AI-polish step calls OpenAI's API — switch it off in Settings for fully offline use.
 
 <p align="center">
   <img src="assets/screenshots/overlay.png" width="360" alt="Recording overlay with live transcription" />
@@ -34,36 +37,52 @@ Press one key, speak, and polished text appears at your cursor — in any app. N
 ## How It Works
 
 ```
- ┌─────────┐     ┌───────────────┐     ┌───────────┐     ┌─────────┐
- │ 🎙️ Speak │ ──▶ │ OpenAI        │ ──▶ │ AI Polish │ ──▶ │ 📋 Paste │
- │         │     │ Realtime API  │     │ (GPT)     │     │         │
- └─────────┘     └───────────────┘     └───────────┘     └─────────┘
+ ┌─────────┐     ┌──────────────────┐     ┌───────────────┐     ┌─────────┐
+ │ 🎙️ Speak │ ──▶ │ whisper.cpp      │ ──▶ │ AI Polish     │ ──▶ │ 📋 Paste │
+ │         │     │ (100% on-device) │     │ (optional)    │     │         │
+ └─────────┘     └──────────────────┘     └───────────────┘     └─────────┘
 ```
 
 1. Press <kbd>\`</kbd> (the key below `Esc`) to start recording
-2. Speak naturally — supports **50+ languages** with automatic language detection
+2. Speak naturally — supports **99 languages** with automatic language detection
 3. Press <kbd>\`</kbd> again to stop
-4. Text is transcribed in real-time, polished by AI, and pasted at your cursor
+4. Speech is segmented and transcribed **while you talk** (energy VAD + Silero VAD), then optionally polished and pasted at your cursor
 
-The entire pipeline — record, transcribe, polish, paste — typically completes within **1–2 seconds** after you stop speaking.
+While recording, finished phrases are already being transcribed in the background — stopping only flushes the tail, so results appear almost instantly.
+
+### Local transcription engine
+
+| Model | Download | RAM while transcribing | Notes |
+|-------|----------|------------------------|-------|
+| **Whisper large-v3-turbo (q5_0)** — default | 574 MB | ~1.2 GB | Near cloud-level accuracy, 99 languages |
+| **Whisper small (q5_1)** — light | 190 MB | ~600 MB | For machines with less RAM |
+
+- Models are downloaded once from Hugging Face (Settings → Transcription Engine) and stored locally
+- The whisper.cpp sidecar starts on demand and **shuts down after 5 minutes idle → 0 MB RAM when not dictating**
+- Apple Silicon builds use Metal acceleration; Windows builds use optimized CPU kernels (AVX2)
+- Silero VAD trims silence server-side, preventing the classic whisper "subtitle" hallucinations
 
 > **Recommended hotkey:** We suggest using <kbd>\`</kbd> (backtick, right below <kbd>Esc</kbd>). It's easy to reach and rarely conflicts with other shortcuts.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/junyuw2289-svg/voicepaste.git
-cd voicepaste
+git clone https://github.com/joshmarketingnl/voicepaste-local.git
+cd voicepaste-local
 npm install
+npm run sidecar:download   # fetches/builds the whisper.cpp engine for your platform
 npm start
 ```
 
-On first launch, go to **Settings** and paste your [OpenAI API key](https://platform.openai.com/api-keys). That's it.
+On first launch, go to **Settings → Transcription Engine** and click **Download model**. That's it — no API key needed.
+
+Optional: paste an [OpenAI API key](https://platform.openai.com/api-keys) to enable AI polish or the cloud engine.
 
 ### Requirements
 
 - Node.js >= 18
-- macOS (Accessibility permission required for auto-paste)
+- macOS (Accessibility permission required for auto-paste) or Windows
+- macOS/Linux only: `cmake` + a C++ compiler to build the whisper.cpp sidecar (Windows uses the official prebuilt)
 
 ## Features
 
@@ -116,9 +135,11 @@ All history data is stored on your machine — browse, search, and delete from t
 
 | Setting | Description |
 |---------|-------------|
-| **OpenAI API Key** | Required. Powers both real-time transcription and AI polish. |
+| **Transcription Engine** | <kbd>Local</kbd> (default) — on-device whisper.cpp, private and free. <kbd>OpenAI API</kbd> — cloud transcription. |
+| **Speech model** | Local engine only: Best quality (large-v3-turbo, 574 MB) or Light (small, 190 MB). |
+| **OpenAI API Key** | Optional with the local engine (used for AI polish only). Required for the OpenAI engine. |
 | **Microphone** | Select input device. Defaults to system default. |
-| **Output Mode** | <kbd>Polish</kbd> (default) — AI cleans up before pasting. <kbd>Fast</kbd> — raw STT output. |
+| **Output Mode** | <kbd>Polish</kbd> (default) — AI cleans up before pasting (OpenAI call). <kbd>Fast</kbd> — raw STT output, fully offline. |
 
 <p align="center">
   <img src="assets/screenshots/userSetting.png" width="600" alt="VoicePaste settings — Output Mode toggle" />
@@ -189,8 +210,9 @@ Grant these in **System Settings** → **Privacy & Security**.
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4 |
 | State Management | Zustand |
-| Speech-to-Text | OpenAI Realtime API |
-| Text Polish | OpenAI Chat Completions |
+| Speech-to-Text | **whisper.cpp (local, default)** or OpenAI Realtime API |
+| Voice Activity Detection | Energy VAD (streaming segmentation) + Silero VAD (silence trimming) |
+| Text Polish | OpenAI Chat Completions (optional) |
 | Storage | electron-store + local JSON files |
 
 ## Project Structure
@@ -198,15 +220,28 @@ Grant these in **System Settings** → **Privacy & Security**.
 ```
 src/
   main/                  # Electron main process
-    openai-service.ts    # OpenAI API calls (transcription + polish prompt)
-    ipc-handlers.ts      # Recording pipeline: start → stream → stop → polish → paste
-    config-store.ts      # Persisted settings (electron-store)
-    realtime-session-manager.ts  # WebSocket session pool with warm-up
+    local-whisper-engine.ts      # Local engine: buffering, VAD segmentation, streaming transcription
+    sidecar-manager.ts           # whisper.cpp server process (lazy start, idle shutdown)
+    model-manager.ts             # Model downloads (Hugging Face) + hardware-based recommendation
+    local-engine-factory.ts      # Engine wiring: config → sidecar → engine
+    openai-service.ts            # OpenAI API calls (cloud transcription + polish prompt)
+    ipc-handlers.ts              # Recording pipeline: start → stream → stop → polish → paste
+    config-store.ts              # Persisted settings (electron-store)
+    realtime-session-manager.ts  # OpenAI WebSocket session pool with warm-up
   main-app/              # React UI (dashboard, history, dictionary, settings)
   renderer/              # Overlay window (recording indicator + live transcript)
   shared/                # Types, constants, defaults
   preload.ts             # IPC bridge
+resources/sidecar/       # Platform-specific whisper-server binaries (npm run sidecar:download)
+scripts/
+  download-sidecar.mjs   # Fetch/build the whisper.cpp sidecar for the current platform
+  test-local-engine.mts  # Standalone smoke test for the local engine (no Electron needed)
 ```
+
+## Credits
+
+This is a local-first fork of [CloveSVG/voicepaste](https://github.com/CloveSVG/voicepaste) by junyuw2289-svg.
+Local transcription is powered by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (Georgi Gerganov) and [OpenAI Whisper](https://github.com/openai/whisper) models, with [Silero VAD](https://github.com/snakers4/silero-vad) for silence trimming.
 
 ## License
 

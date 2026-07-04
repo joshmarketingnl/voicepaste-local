@@ -20,7 +20,7 @@ const config: ForgeConfig = {
     appBundleId: 'com.junyuwang.voicepaste',
     appCategoryType: 'public.app-category.productivity',
     icon: './assets/icon.icns',
-    extraResource: ['./assets'],
+    extraResource: ['./assets', './resources/sidecar'],
     extendInfo: {
       NSMicrophoneUsageDescription: 'VoicePaste needs access to your microphone to record voice for transcription.',
       NSAppleEventsUsageDescription: 'VoicePaste needs to send keystrokes to insert transcribed text into other applications.',

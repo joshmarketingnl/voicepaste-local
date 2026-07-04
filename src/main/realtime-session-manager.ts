@@ -98,6 +98,13 @@ export class RealtimeSessionManager {
       return;
     }
 
+    // Skip warmup entirely when the local engine is active — no reason to
+    // hold OpenAI realtime sessions open.
+    if (config.transcriptionEngine !== 'openai') {
+      console.log('[SessionMgr] warmUp() skipped — local engine active');
+      return;
+    }
+
     try {
       const token = await this.fetchToken();
       if (!token) return;

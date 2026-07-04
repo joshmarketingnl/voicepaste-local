@@ -1,0 +1,68 @@
+name: build-sidecar
+
+# Builds the whisper.cpp `whisper-server` sidecar binaries used by the local
+# transcription engine, for every platform VoicePaste ships on.
+# Artifacts land in resources/sidecar/<platform>-<arch>/ layout.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'sidecar-v*'
+
+env:
+  WHISPER_CPP_VERSION: v1.9.1
+
+jobs:
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14 # Apple Silicon (Metal)
+            platform_key: darwin-arm64
+          - runner: macos-13 # Intel
+            platform_key: darwin-x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Clone whisper.cpp
+        run: git clone --depth 1 --branch $WHISPER_CPP_VERSION https://github.com/ggml-org/whisper.cpp whisper.cpp
+
+      - name: Build whisper-server
+        working-directory: whisper.cpp
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build --config Release -j --target whisper-server
+
+      - name: Stage artifact
+        run: |
+          mkdir -p out/${{ matrix.platform_key }}
+          cp whisper.cpp/build/bin/whisper-server out/${{ matrix.platform_key }}/
+          chmod +x out/${{ matrix.platform_key }}/whisper-server
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecar-${{ matrix.platform_key }}
+          path: out/${{ matrix.platform_key }}
+
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Download official prebuilt
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/ggml-org/whisper.cpp/releases/download/$env:WHISPER_CPP_VERSION/whisper-bin-x64.zip" -OutFile whisper-bin-x64.zip
+          Expand-Archive whisper-bin-x64.zip -DestinationPath extracted -Force
+
+      - name: Stage artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out/win32-x64 | Out-Null
+          $src = if (Test-Path extracted/Release) { 'extracted/Release' } else { 'extracted' }
+          Copy-Item "$src/whisper-server.exe" out/win32-x64/
+          Copy-Item "$src/whisper.dll" out/win32-x64/
+          Copy-Item "$src/ggml*.dll" out/win32-x64/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecar-win32-x64
+          path: out/win32-x64

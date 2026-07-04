@@ -46,6 +46,13 @@ export const IPC_CHANNELS = {
   REALTIME_ERROR: 'realtime:error',
   REALTIME_RESIZE: 'realtime:resize',
 
+  // Local model management (renderer -> main, invoke)
+  LOCAL_MODEL_STATUS: 'local-model:status',
+  LOCAL_MODEL_DOWNLOAD: 'local-model:download',
+  LOCAL_MODEL_DELETE: 'local-model:delete',
+  // Local model download progress (main -> renderer, push)
+  LOCAL_MODEL_PROGRESS: 'local-model:progress',
+
   // Renderer -> main diagnostic logging
   RENDERER_LOG: 'renderer:log',
 } as const;
