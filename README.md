@@ -238,6 +238,26 @@ scripts/
   test-local-engine.mts  # Standalone smoke test for the local engine (no Electron needed)
 ```
 
+## Bonus: use the local engine with the official VoicePaste beta app
+
+The official VoicePaste desktop beta (v1.1+) has a configurable **Provider** setting and built-in
+localhost support (no API key needed for local providers). You can point it at a bare
+`whisper-server` acting as an OpenAI-compatible endpoint — no proxy required:
+
+```bash
+whisper-server -m models/ggml-small-q5_1.bin -l auto -t 8 \
+  --host 127.0.0.1 --port 8765 \
+  --convert \
+  --inference-path /v1/audio/transcriptions \
+  --vad --vad-model models/ggml-silero-v5.1.2.bin
+```
+
+Then set the app's Provider to `http://127.0.0.1:8765/v1`. Notes:
+
+- `--convert` requires `ffmpeg` on PATH (the app records webm/opus)
+- `-l auto` is important: the app omits the `language` field in auto mode, so the server default must be auto-detect
+- The app's OpenAI SDK posts to `{provider}/audio/transcriptions` with a `model` field, which whisper-server ignores
+
 ## Credits
 
 This is a local-first fork of [CloveSVG/voicepaste](https://github.com/CloveSVG/voicepaste) by junyuw2289-svg.
