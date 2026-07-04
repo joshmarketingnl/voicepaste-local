@@ -30,7 +30,9 @@ jobs:
       - name: Build whisper-server
         working-directory: whisper.cpp
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          # GGML_METAL_EMBED_LIBRARY bakes the Metal shaders into the binary so
+          # whisper-server is a single self-contained file
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DGGML_METAL_EMBED_LIBRARY=ON
           cmake --build build --config Release -j --target whisper-server
 
       - name: Stage artifact
